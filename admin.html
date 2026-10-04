@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Dashboard Pengawas – UTS Teori Akuntansi Keuangan</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230f766e'/%3E%3Cpath d='M32 12l18 7v13c0 11-8 19-18 22-10-3-18-11-18-22V19z' fill='%23fff'/%3E%3Cpath d='M24 32l6 6 11-12' fill='none' stroke='%230f766e' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<style>
+  :root { --bg:#f4f5f7; --card:#fff; --tx:#1a1d23; --mut:#667085; --bd:#e2e5ea; --pri:#2563eb; --red:#c62828; --grn:#15803d; --amb:#b45309; --rowlock:#fdecec; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#111318; --card:#1a1d24; --tx:#e8eaee; --mut:#98a2b3; --bd:#2b303a; --rowlock:#3a1d1f; --pri:#6b9bff; --red:#ff7b7b; --grn:#4ade80; --amb:#fbbf24; } }
+  * { box-sizing: border-box; }
+  body { margin:0; font:14px/1.4 system-ui, Arial, sans-serif; background:var(--bg); color:var(--tx); }
+  [hidden] { display:none !important; }
+  main { max-width:1100px; margin:0 auto; padding:16px; }
+  h1 { font-size:20px; margin:0; } h2 { font-size:15px; margin:0 0 10px; }
+  section, .bar { background:var(--card); border:1px solid var(--bd); border-radius:10px; padding:14px; margin-bottom:14px; }
+  .bar { display:flex; flex-wrap:wrap; gap:10px; align-items:center; justify-content:space-between; }
+  .mut { color:var(--mut); font-size:13px; }
+  input, select, button { font:inherit; color:inherit; padding:7px 10px; border:1px solid var(--bd); border-radius:7px; background:var(--card); }
+  button { cursor:pointer; } button:hover { border-color:var(--pri); }
+  button.pri { background:var(--pri); border-color:var(--pri); color:#fff; }
+  button.bad { color:var(--red); }
+  button:disabled { opacity:.5; cursor:default; }
+  :focus-visible { outline:2px solid var(--pri); outline-offset:1px; }
+  #login { max-width:340px; margin:80px auto; }
+  #login input { width:100%; margin:10px 0; }
+  .row { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+  .stats { display:flex; gap:18px; } .stats b { font-size:18px; }
+  .tw { overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; min-width:720px; }
+  th, td { text-align:left; padding:8px; border-bottom:1px solid var(--bd); vertical-align:middle; }
+  th { color:var(--mut); font-weight:600; font-size:13px; }
+  tr.lock { background:var(--rowlock); }
+  .tag { font-weight:600; } .tag.l { color:var(--red); } .tag.a { color:var(--grn); }
+  td.act { white-space:nowrap; } td.act button { padding:4px 8px; font-size:13px; }
+  .kgrid { display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:10px; }
+  .kc { border:1px solid var(--bd); border-radius:8px; padding:10px; display:grid; gap:8px; }
+  .kc .row label { display:flex; gap:6px; align-items:center; }
+  .empty { padding:18px; text-align:center; color:var(--mut); }
+  pre { margin:0; white-space:pre-wrap; font:12px/1.5 ui-monospace, monospace; max-height:240px; overflow:auto; }
+  #toast { position:fixed; left:50%; bottom:24px; transform:translate(-50%,20px); background:#15803d; color:#fff; padding:10px 18px; border-radius:8px; font-size:14px; font-weight:600; opacity:0; pointer-events:none; transition:opacity .25s, transform .25s; z-index:99; max-width:90vw; box-shadow:0 4px 14px rgba(0,0,0,.25); }
+  #toast.show { opacity:1; transform:translate(-50%,0); }
+  #toast.err { background:#c62828; }
+</style>
+</head>
+<body>
+
+<section id="login">
+  <h1>Dashboard Pengawas</h1>
+  <input type="password" id="pw" placeholder="Passcode" autocomplete="off">
+  <button class="pri" id="btnLogin" style="width:100%">Masuk</button>
+  <div id="loginMsg" class="mut" style="color:var(--red);margin-top:8px;min-height:18px"></div>
+</section>
+
+<main id="app" hidden>
+  <div class="bar">
+    <h1>Dashboard Pengawas</h1>
+    <div class="row">
+      <span class="mut" id="conn"></span>
+      <label class="row mut"><input type="checkbox" id="auto" checked> Perbarui tiap 10 detik</label>
+      <button id="btnRefresh">Muat ulang</button>
+    </div>
+  </div>
+
+  <section>
+    <h2>Jadwal dan kontrol kelas</h2>
+    <div class="kgrid" id="cfg"></div>
+    <div class="row" style="margin-top:12px">
+      <label class="row">Batas pelanggaran sebelum terkunci <input type="number" id="max" min="1" max="10" style="width:64px"></label>
+      <button id="btnMax">Simpan batas</button>
+    </div>
+  </section>
+
+  <section>
+    <div class="row" style="justify-content:space-between;margin-bottom:10px">
+      <div class="stats"><span><b id="sTotal">0</b> <span class="mut">peserta</span></span><span><b id="sLock">0</b> <span class="mut">terkunci</span></span><span><b id="sViol">0</b> <span class="mut">pernah melanggar</span></span></div>
+      <div class="row">
+        <select id="fKelas"></select>
+        <input type="search" id="fCari" placeholder="Cari nama, NIM, email">
+        <button id="btnUnlockAll" class="bad">Buka semua kunci</button>
+      </div>
+    </div>
+    <div class="tw"><table>
+      <thead><tr><th>NIM</th><th>Nama</th><th>Kelas</th><th>Email</th><th>Saat ini</th><th>Total</th><th>Status</th><th>Aksi</th></tr></thead>
+      <tbody id="tbody"></tbody>
+    </table></div>
+    <div class="empty" id="empty" hidden>Belum ada peserta yang masuk.</div>
+  </section>
+
+  <section>
+    <details id="logBox"><summary>Riwayat pelanggaran dan tindakan pengawas</summary><pre id="logOut" style="margin-top:10px">Memuat...</pre></details>
+  </section>
+</main>
+
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+  const BACKEND_URL = "https://script.google.com/macros/s/AKfycby-VPjEqz4W5rkRK2lt-hqon6wSuQJhf_zHqsCjPT2dYp3y41m5fATUkmIC6FxChszYqQ/exec";
+  const HARI = ['', 'Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+  const STATUS = { sedang_berlangsung:'🟢 Berlangsung', ruang_tunggu:'🟡 Ruang tunggu', belum_mulai:'⚪ Belum mulai', bukan_hari_ujian:'⚪ Bukan hari ujian', sudah_selesai:'🔴 Selesai', ditutup:'⛔ Ditutup pengawas' };
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+  const pad = n => String(n).padStart(2, '0');
+
+  let pass = '', data = null, timer = null, cfgRendered = false, busy = false, toastT;
+
+  function toast(msg, err) {
+    const t = $('toast');
+    t.textContent = msg;
+    t.classList.toggle('err', !!err);
+    t.classList.add('show');
+    clearTimeout(toastT);
+    toastT = setTimeout(() => t.classList.remove('show'), 3000);
+  }
+
+  async function api(p) {
+    try {
+      const r = await fetch(BACKEND_URL, { method:'POST', headers:{ 'Content-Type':'text/plain' }, body: JSON.stringify({ ...p, passcode: pass }) });
+      return await r.json();
+    } catch (e) { return { ok:false, error:'Gagal konek: ' + e.message }; }
+  }
+
+  async function login() {
+    pass = $('pw').value;
+    $('loginMsg').textContent = 'Memeriksa...';
+    const r = await api({ action:'listStudents' });
+    if (!r.ok) { $('loginMsg').textContent = r.error; return; }
+    $('login').hidden = true; $('app').hidden = false;
+    apply(r); start();
+  }
+  async function refresh() {
+    const r = await api({ action:'listStudents' });
+    if (r.ok) apply(r); else $('conn').textContent = '⚠ ' + r.error;
+  }
+  function start() { clearInterval(timer); if ($('auto').checked) timer = setInterval(refresh, 10000); }
+
+  function apply(r) {
+    data = r;
+    $('conn').textContent = 'Jam server: ' + r.serverTime;
+    if (!cfgRendered) { renderCfg(); renderFilter(); cfgRendered = true; }
+    document.querySelectorAll('.kc').forEach(el => {
+      el.querySelector('.st').textContent = STATUS[r.waktuKelas[el.dataset.k].status] || '';
+      const md = el.querySelector('.mode'); // samakan pilihan mode dengan kondisi server (kecuali sedang dipilih)
+      if (md && document.activeElement !== md) md.value = r.config.paksa[el.dataset.k] || 'auto';
+    });
+    renderTable();
+  }
+
+  function renderFilter() {
+    const cur = $('fKelas').value;
+    $('fKelas').innerHTML = '<option value="">Semua kelas</option>' + data.kelasList.map(k => `<option>${esc(k)}</option>`).join('');
+    $('fKelas').value = cur;
+  }
+
+  function renderCfg() {
+    $('max').value = data.config.max;
+    $('cfg').innerHTML = data.kelasList.map(k => {
+      const j = data.config.jadwal[k], m = data.config.paksa[k] || 'auto';
+      const opt = (v, t) => `<option value="${v}" ${m === v ? 'selected' : ''}>${t}</option>`;
+      return `<div class="kc" data-k="${esc(k)}">
+        <div class="row" style="justify-content:space-between"><b>${esc(k)}</b><span class="st"></span></div>
+        <div class="row"><select class="hari">${HARI.slice(1).map((h, i) => `<option value="${i + 1}" ${j.hari === i + 1 ? 'selected' : ''}>${h}</option>`).join('')}</select>
+          <input type="time" class="mulai" value="${pad(j.mulaiJam)}:${pad(j.mulaiMenit)}"> <span class="mut">sampai</span>
+          <input type="time" class="selesai" value="${pad(j.selesaiJam)}:${pad(j.selesaiMenit)}"></div>
+        <div class="row"><select class="mode">${opt('auto', 'Ikuti jadwal')}${opt('buka', 'Buka paksa')}${opt('tutup', 'Tutup paksa')}</select>
+          <button class="pri" data-c="save">Simpan</button><button data-c="reset">Kembalikan jadwal awal</button></div>
+      </div>`;
+    }).join('');
+  }
+
+  function renderTable() {
+    const fk = $('fKelas').value, q = $('fCari').value.trim().toLowerCase();
+    const all = data.students.filter(s => !fk || s.kelas === fk);
+    $('sTotal').textContent = all.length;
+    $('sLock').textContent = all.filter(s => s.terkunci).length;
+    $('sViol').textContent = all.filter(s => s.total > 0).length;
+    const rows = all.filter(s => !q || (s.nama + s.nim + s.email).toLowerCase().includes(q))
+      .sort((a, b) => (b.terkunci - a.terkunci) || (b.update || 0) - (a.update || 0));
+    $('empty').hidden = rows.length > 0;
+    $('tbody').innerHTML = rows.map(s => `<tr class="${s.terkunci ? 'lock' : ''}">
+      <td>${esc(s.nim)}</td><td>${esc(s.nama)}</td><td>${esc(s.kelas)}</td><td>${esc(s.email)}</td>
+      <td>${s.pelanggaran}</td><td>${s.total}</td><td><span class="tag ${s.terkunci ? 'l' : 'a'}">${s.terkunci ? 'Terkunci' : 'Aktif'}</span></td>
+      <td class="act" data-n="${esc(s.nim)}">
+        ${s.terkunci ? '<button class="pri" data-a="unlock">Buka kunci</button>' : '<button class="bad" data-a="lock">Kunci</button>'}
+        <button data-a="minus" title="Kurangi 1 pelanggaran">−1</button><button data-a="plus" title="Tambah 1 pelanggaran">+1</button>
+        <button data-a="del" class="bad">Hapus</button></td></tr>`).join('');
+  }
+
+  async function aksi(p) {
+    if (busy) return; busy = true;
+    const r = await api(p);
+    busy = false;
+    if (!r.ok) toast('❌ ' + r.error, true);
+    return r;
+  }
+
+  $('tbody').onclick = async e => {
+    const b = e.target.closest('button'); if (!b) return;
+    const nim = b.parentElement.dataset.n, s = data.students.find(x => x.nim === nim); if (!s) return;
+    const a = b.dataset.a;
+    if (a === 'lock' && !confirm(`Kunci ${s.nama} (${nim})?`)) return;
+    if (a === 'del' && !confirm(`Hapus ${s.nama} (${nim}) dari daftar? Data pelanggarannya ikut hilang.`)) return;
+    const p = { unlock:{ action:'unlock' }, lock:{ action:'lock' }, del:{ action:'deleteStudent' },
+      minus:{ action:'setViolations', jumlah:Math.max(0, s.pelanggaran - 1) }, plus:{ action:'setViolations', jumlah:s.pelanggaran + 1 } }[a];
+    const pesan = {
+      unlock: `🔓 Kunci ${s.nama} berhasil dibuka`,
+      lock: `🔒 ${s.nama} berhasil dikunci`,
+      del: `🗑️ ${s.nama} dihapus dari daftar`,
+      minus: `➖ Pelanggaran ${s.nama} dikurangi`,
+      plus: `➕ Pelanggaran ${s.nama} ditambah`
+    }[a];
+    b.disabled = true; b.textContent = '...';
+    const r = await aksi({ ...p, nim });
+    if (r && r.ok) toast(pesan);
+    refresh();
+  };
+
+  $('cfg').onclick = async e => {
+    const b = e.target.closest('button'); if (!b) return;
+    const el = b.closest('.kc'), k = el.dataset.k;
+    const teksAsli = b.textContent;
+    let r;
+    if (b.dataset.c === 'reset') {
+      if (!confirm(`Kembalikan jadwal ${k} ke jadwal awal?`)) return;
+      b.disabled = true; b.textContent = 'Menyimpan...';
+      r = await aksi({ action:'setConfig', jadwal:{ [k]:null } });
+      if (r && r.ok) toast('↩️ Jadwal ' + k + ' dikembalikan ke awal');
+    } else {
+      const [mj, mm] = el.querySelector('.mulai').value.split(':').map(Number);
+      const [sj, sm] = el.querySelector('.selesai').value.split(':').map(Number);
+      const mode = el.querySelector('.mode').value;
+      if ([mj, mm, sj, sm].some(isNaN)) { toast('❌ Isi jam mulai dan selesai.', true); return; }
+      if (mode !== 'auto' && !confirm(`${mode === 'buka' ? 'Buka paksa' : 'Tutup paksa'} ${k}? Jadwal diabaikan sampai dikembalikan ke "Ikuti jadwal".`)) return;
+      b.disabled = true; b.textContent = 'Menyimpan...';
+      r = await aksi({ action:'setConfig', paksa:{ [k]:mode }, jadwal:{ [k]:{ hari:+el.querySelector('.hari').value, mulaiJam:mj, mulaiMenit:mm, selesaiJam:sj, selesaiMenit:sm } } });
+      if (r && r.ok) toast('✅ Jadwal & mode ' + k + ' tersimpan');
+    }
+    b.disabled = false; b.textContent = teksAsli;
+    cfgRendered = false; refresh();
+  };
+
+  $('btnMax').onclick = async () => {
+    const b = $('btnMax');
+    b.disabled = true; b.textContent = 'Menyimpan...';
+    const r = await aksi({ action:'setConfig', max:$('max').value });
+    b.disabled = false; b.textContent = 'Simpan batas';
+    if (r && r.ok) { toast('✅ Batas pelanggaran disimpan: ' + $('max').value); refresh(); }
+  };
+  $('btnUnlockAll').onclick = async () => {
+    const k = $('fKelas').value;
+    if (!confirm(`Buka semua kunci${k ? ' untuk ' + k : ' di semua kelas'}? Pelanggaran mereka direset ke 0.`)) return;
+    const r = await aksi({ action:'unlockAll', kelas:k });
+    if (r && r.ok) toast(`🔓 ${r.jumlah} peserta dibuka kuncinya`);
+    refresh();
+  };
+  $('logBox').ontoggle = async () => {
+    if (!$('logBox').open) return;
+    const r = await api({ action:'getLog' });
+    $('logOut').textContent = r.ok ? (r.log.map(l => `${new Date(l.t).toLocaleString('id-ID')}  ${l.aksi}  ${l.nim}  ${l.detail}`).join('\n') || 'Belum ada catatan.') : r.error;
+  };
+  $('fKelas').onchange = $('fCari').oninput = () => data && renderTable();
+  $('auto').onchange = start;
+  $('btnRefresh').onclick = refresh;
+  $('btnLogin').onclick = login;
+  $('pw').onkeydown = e => { if (e.key === 'Enter') login(); };
+</script>
+</body>
+</html>
