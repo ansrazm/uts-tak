@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>UTS Teori Akuntansi Keuangan</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%234338ca'/%3E%3Crect x='17' y='12' width='30' height='40' rx='4' fill='%23fff'/%3E%3Cpath d='M24 24h16M24 32h16' stroke='%234338ca' stroke-width='3' stroke-linecap='round'/%3E%3Cpath d='M25 43l5 5 9-10' fill='none' stroke='%2316a34a' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; background: #f5f5f5; height: 100vh; display: flex; flex-direction: column; }
+  #gate { flex: 1; display: flex; align-items: center; justify-content: center; padding: 24px; text-align: center; overflow-y: auto; }
+  #gate.hidden { display: none; }
+  #gate .box { max-width: 380px; width: 100%; }
+  #gate h2 { margin-bottom: 16px; color: #222; }
+  #gate .info { text-align: left; background: #eff6ff; border: 1px solid #bfdbfe; color: #1e3a8a; border-radius: 8px; padding: 12px 14px; margin-bottom: 14px; font-size: 13.5px; line-height: 1.5; }
+  #gate .info ul { margin: 6px 0 0 18px; }
+  #gate .info li { margin-bottom: 2px; }
+  #gate input, #gate select { width: 100%; padding: 12px; margin-bottom: 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 15px; }
+  #gate button { width: 100%; padding: 12px; background: #2563eb; color: white; border: none; border-radius: 8px; font-size: 15px; cursor: pointer; }
+  #gate button:disabled { opacity: .6; cursor: default; }
+  #gate .msg { color: #c62828; font-size: 13px; margin-top: 8px; min-height: 18px; }
+  #warning-banner { background: #ffebee; color: #c62828; padding: 10px 16px; font-size: 14px; text-align: center; display: none; border-bottom: 2px solid #c62828; }
+  #warning-banner.show { display: block; }
+  #status-screen { position: fixed; inset: 0; background: rgba(0,0,0,0.92); color: white; display: none; align-items: center; justify-content: center; flex-direction: column; text-align: center; padding: 24px; z-index: 999; }
+  #status-screen.show { display: flex; }
+  #status-screen h1 { font-size: 22px; margin-bottom: 12px; }
+  #status-screen p { font-size: 15px; opacity: 0.85; max-width: 400px; }
+  iframe { flex: 1; width: 100%; border: none; display: none; }
+  #quizWrap { flex: 1; display: none; flex-direction: column; }
+  #quizWrap.show { display: flex; }
+</style>
+</head>
+<body>
+
+<div id="gate">
+  <div class="box">
+    <h2>🔒 Masuk Ujian</h2>
+    <div class="info">
+      <b>UTS Teori Akuntansi Keuangan</b>
+      <ul>
+        <li>Soal: <b>40</b> pilihan ganda, waktu <b>45 menit</b> sesuai kelas yang dipilih</li>
+        <li>Jangan pindah tab/jendela, ujian bisa <b>terkunci otomatis</b></li>
+        <li>Kalau terkunci: <b>jangan keluar/refresh</b>, lapor ke <b>pengawas/dosen</b></li>
+      </ul>
+    </div>
+    <input type="text" id="inpNama" placeholder="Nama Lengkap" autocomplete="off">
+    <input type="text" id="inpNim" placeholder="NIM" autocomplete="off">
+    <select id="inpKelas">
+      <option value="">-- Pilih Kelas --</option>
+      <option value="Kelas C jam 08.00">Kelas C jam 08.00</option>
+      <option value="Kelas H jam 10.30">Kelas H jam 10.30</option>
+    </select>
+    <button id="btnMasuk" onclick="mulaiUjian()">Masuk Ujian</button>
+    <div class="msg" id="gateMsg"></div>
+  </div>
+</div>
+
+<div id="warning-banner">
+  ⚠️ Kamu keluar dari halaman ujian! Pelanggaran ke-<span id="counter">0</span>. Tercatat otomatis.
+</div>
+
+<div id="status-screen">
+  <h1 id="statusTitle"></h1>
+  <p id="statusText"></p>
+</div>
+
+<div id="quizWrap">
+  <!-- sandbox: tanpa allow-top-navigation dan tanpa allow-popups, jadi Form tidak bisa memindahkan halaman wrapper atau membuka tab baru -->
+  <iframe id="quizFrame" sandbox="allow-scripts allow-forms allow-same-origin"></iframe>
+</div>
+
+<script>
+  // ====== ISI BAGIAN INI ======
+  const BACKEND_URL = "https://script.google.com/macros/s/AKfycby-VPjEqz4W5rkRK2lt-hqon6wSuQJhf_zHqsCjPT2dYp3y41m5fATUkmIC6FxChszYqQ/exec";
+  const FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSegbgC2gcBrDIYXZ1MAuHf3QNN17KxhAVMjvDd2uRbRyyzPEQ/viewform";
+
+  // ID kolom Form (angka setelah "entry."), dari hasil fungsi ambilEntryId().
+  // Kalau dikosongkan, Form tidak terisi otomatis dan mahasiswa mengisi sendiri Nama/NIM/Kelas di Form.
+  const ENTRY_NAMA = '';
+  const ENTRY_NIM = '';
+  const ENTRY_KELAS = '';
+
+  // Teks pilihan kolom Kelas di Form (harus sama persis dengan di Form)
+  const KELAS_KE_FORM = {
+    'Kelas C jam 08.00': 'Kelas C (jam 08.00)',
+    'Kelas H jam 10.30': 'Kelas H (jam 10.30)'
+  };
+
+  const GRACE_MS = 15000;      // 15 detik pertama setelah soal terbuka tidak dihitung pelanggaran
+  const DEBOUNCE_MS = 3000;    // beberapa event dalam jeda ini dihitung 1 pelanggaran
+  const FOKUS_CADANGAN = false; // true: cek fokus tiap 0,5 detik sebagai cadangan blur. Bisa memicu pelanggaran palsu di HP tertentu; aktifkan hanya setelah dites.
+
+  const $ = id => document.getElementById(id);
+
+  let nama = "", nim = "", kelas = "", email = "";
+  let layar = 'gate'; // gate | wait | quiz | lock | ditutup | selesai | info
+  let pollT = null, tungguT = null, graceSampai = 0, terakhirLapor = 0, cekBusy = false;
+
+  const P = a => ({ action: a, nim, nama, kelas, email });
+
+  function buatUrlFormTerisi() {
+    const params = new URLSearchParams();
+    params.set('usp', 'pp_url');
+    params.set('embedded', 'true');
+    if (ENTRY_NAMA) params.set('entry.' + ENTRY_NAMA, nama);
+    if (ENTRY_NIM) params.set('entry.' + ENTRY_NIM, nim);
+    if (ENTRY_KELAS) params.set('entry.' + ENTRY_KELAS, KELAS_KE_FORM[kelas] || '');
+    return FORM_URL + '?' + params.toString();
+  }
+
+  function tampilStatus(judul, teks) {
+    $('statusTitle').textContent = judul;
+    $('statusText').textContent = teks;
+    $('status-screen').classList.add('show');
+    $('quizWrap').classList.remove('show'); // iframe tetap ada, jawaban tidak hilang
+  }
+  function sembunyikanStatus() { $('status-screen').classList.remove('show'); }
+
+  async function panggilBackend(payload) {
+    try {
+      const res = await fetch(BACKEND_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload) });
+      return await res.json();
+    } catch (e) {
+      return { ok: false, error: 'Gagal konek ke server: ' + e.message };
+    }
+  }
+
+  async function mulaiUjian() {
+    nama = $('inpNama').value.trim();
+    nim = $('inpNim').value.trim().toUpperCase();
+    kelas = $('inpKelas').value;
+    const msg = $('gateMsg');
+
+    if (!nama || !nim || !kelas) { msg.textContent = 'Semua field wajib diisi!'; return; }
+    if (BACKEND_URL.indexOf('GANTI') === 0) { msg.textContent = 'BACKEND_URL belum diisi di index.html.'; return; }
+
+    $('btnMasuk').disabled = true;
+    msg.textContent = 'Memeriksa...';
+    const cek = await panggilBackend(P('checkStatus'));
+    $('btnMasuk').disabled = false;
+    if (!cek.ok) { msg.textContent = cek.error || 'Gagal memeriksa status.'; return; }
+
+    $('gate').classList.add('hidden');
+    try { terapkan(cek); } catch (e) { tampilStatus('⚠️ Terjadi Kesalahan', 'Muat ulang halaman atau hubungi pengawas. (' + e.message + ')'); }
+  }
+
+  function infoWaktu(w) {
+    const jam = String(w.mulaiJam).padStart(2, '0') + ':' + String(w.mulaiMenit).padStart(2, '0');
+    return ({
+      bukan_hari_ujian: ['📅 Bukan Hari Ujian', 'Ujian untuk kelas ini belum dijadwalkan hari ini.'],
+      belum_mulai: ['⏳ Ujian Belum Dimulai', 'Ujian akan dimulai pukul ' + jam + '. Silakan buka kembali halaman ini nanti.'],
+      sudah_selesai: ['⛔ Waktu Ujian Sudah Habis', 'Sesi ujian untuk kelas ini sudah berakhir.'],
+      ditutup: ['⛔ Ujian Ditutup Pengawas', 'Ujian dihentikan sementara oleh pengawas. Jangan refresh; halaman terbuka lagi otomatis saat ujian dibuka.'],
+      kelas_tidak_dikenal: ['❓ Kelas Tidak Dikenal', 'Hubungi pengawas.']
+    })[w.status];
+  }
+
+  // satu pintu untuk semua status dari server
+  function terapkan(cek) {
+    const w = cek.waktu, st = w.status;
+    if (cek.terkunci) return tampilLock(cek.pelanggaran);
+    if (st === 'sedang_berlangsung') return layar === 'quiz' ? setBanner(cek.pelanggaran) : bukaQuiz(cek.pelanggaran);
+    if (st === 'ruang_tunggu') return layar === 'wait' ? 0 : masukRuangTunggu(w);
+    clearInterval(tungguT);
+    const [j, t] = infoWaktu(w) || ['⚠️ Status Tidak Dikenal', 'Hubungi pengawas. (' + st + ')'];
+    layar = st === 'ditutup' ? 'ditutup' : (st === 'sudah_selesai' ? 'selesai' : 'info');
+    tampilStatus(j, t);
+    if (layar === 'ditutup') jadwalPoll(10000);
+  }
+
+  function setBanner(p) {
+    if (p > 0) { $('counter').textContent = p; $('warning-banner').classList.add('show'); }
+  }
+
+  function bukaQuiz(pelanggaran) {
+    clearInterval(tungguT);
+    const f = $('quizFrame');
+    if (!f.getAttribute('src')) f.src = buatUrlFormTerisi(); // hanya sekali; setelah unlock cukup ditampilkan lagi
+    f.style.display = 'block';
+    sembunyikanStatus();
+    $('quizWrap').classList.add('show');
+    setBanner(pelanggaran);
+    if (layar !== 'quiz') graceSampai = Date.now() + GRACE_MS;
+    layar = 'quiz';
+    jadwalPoll(30000);
+  }
+
+  function tampilLock(p) {
+    layar = 'lock';
+    tampilStatus('🔒 Ujian Dikunci', 'Kamu keluar dari halaman ujian ' + p + ' kali. Hubungi pengawas/dosen untuk membuka kunci. Jangan refresh; halaman terbuka lagi otomatis setelah kunci dibuka.');
+    jadwalPoll(10000);
+  }
+
+  function masukRuangTunggu(w) {
+    layar = 'wait';
+    clearInterval(tungguT);
+    let sisa = w.sisaDetik, tick = 0;
+    const jamMulai = String(w.mulaiJam).padStart(2, '0') + ':' + String(w.mulaiMenit).padStart(2, '0');
+    const render = () => {
+      const m = String(Math.floor(sisa / 60)).padStart(2, '0'), s = String(sisa % 60).padStart(2, '0');
+      tampilStatus('⏳ Ruang Tunggu', 'Ujian dimulai pukul ' + jamMulai + '. Tetap di halaman ini, soal akan terbuka otomatis. Mulai dalam ' + m + ':' + s);
+    };
+    render();
+    tungguT = setInterval(async () => {
+      sisa--; tick++;
+      if (sisa > 0) render();
+      if ((sisa <= 0 || tick % 10 === 0) && !cekBusy) {
+        cekBusy = true;
+        const cek = await panggilBackend(P('checkStatus'));
+        cekBusy = false;
+        if (!cek.ok || layar !== 'wait') return;
+        if (cek.waktu.status === 'ruang_tunggu') { sisa = cek.waktu.sisaDetik; render(); }
+        else terapkan(cek);
+      }
+    }, 1000);
+  }
+
+  function jadwalPoll(ms) { clearTimeout(pollT); pollT = setTimeout(poll, ms); }
+  async function poll() {
+    const cek = await panggilBackend(P('checkStatus'));
+    if (cek.ok) terapkan(cek);
+    if (layar === 'quiz') jadwalPoll(30000);
+    else if (layar === 'lock' || layar === 'ditutup') jadwalPoll(10000);
+  }
+
+  async function catatPelanggaran() {
+    const now = Date.now();
+    if (layar !== 'quiz' || now < graceSampai || now - terakhirLapor < DEBOUNCE_MS) return;
+    terakhirLapor = now;
+    const r = await panggilBackend(P('reportViolation'));
+    if (!r.ok) return;
+    setBanner(r.pelanggaran);
+    if (r.terkunci) tampilLock(r.pelanggaran);
+  }
+
+  // saat kembali ke tab dalam kondisi terkunci/ditutup, langsung cek ke server (timer tab latar bisa tertunda)
+  const cekUlang = () => { if (layar === 'lock' || layar === 'ditutup') { clearTimeout(pollT); poll(); } };
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) catatPelanggaran(); else cekUlang();
+  });
+  window.addEventListener('focus', cekUlang);
+  // blur juga menyala saat mahasiswa mengklik isi Form (iframe). Yang dihitung hanya kalau fokus benar-benar keluar dari halaman.
+  window.addEventListener('blur', function () {
+    setTimeout(function () { if (!document.hasFocus()) catatPelanggaran(); }, 150);
+  });
+  if (FOKUS_CADANGAN) {
+    let fokusAda = document.hasFocus();
+    setInterval(function () {
+      const ada = document.hasFocus();
+      if (fokusAda && !ada) catatPelanggaran();
+      fokusAda = ada;
+    }, 500);
+  }
+  document.addEventListener('contextmenu', e => e.preventDefault());
+</script>
+
+</body>
+</html>
