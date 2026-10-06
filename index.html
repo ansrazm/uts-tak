@@ -50,6 +50,7 @@
       <b>UTS Teori Akuntansi Keuangan</b>
       <ul>
         <li>Soal: <b>40</b> pilihan ganda, waktu <b>30 menit</b> sesuai kelas yang dipilih</li>
+        <li>Nama, NIM, dan kelas akan <b>terisi otomatis</b> di Form. Cek lagi sebelum mulai mengerjakan.</li>
         <li>Jangan pindah tab/jendela, ujian bisa <b>terkunci otomatis</b></li>
         <li>Kalau terkunci: <b>jangan keluar/refresh</b>, lapor ke <b>pengawas/dosen</b></li>
       </ul>
@@ -85,11 +86,9 @@
   const BACKEND_URL = "https://script.google.com/macros/s/AKfycby-VPjEqz4W5rkRK2lt-hqon6wSuQJhf_zHqsCjPT2dYp3y41m5fATUkmIC6FxChszYqQ/exec";
   const FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSegbgC2gcBrDIYXZ1MAuHf3QNN17KxhAVMjvDd2uRbRyyzPEQ/viewform";
 
-  // ID kolom Form (angka setelah "entry."), dari hasil fungsi ambilEntryId().
-  // Kalau dikosongkan, Form tidak terisi otomatis dan mahasiswa mengisi sendiri Nama/NIM/Kelas di Form.
-  const ENTRY_NAMA = '';
-  const ENTRY_NIM = '';
-  const ENTRY_KELAS = '';
+  // Tempel link dari "Dapatkan link yang terisi otomatis" di editor Form.
+  // Isian saat membuat link: Nama = AAA, NIM = BBB, Kelas = pilih salah satu.
+  const PREFILL_LINK = 'TEMPEL_LINK_DI_SINI';
 
   // Teks pilihan kolom Kelas di Form (harus sama persis dengan di Form)
   const KELAS_KE_FORM = {
@@ -100,6 +99,21 @@
   const GRACE_MS = 15000;      // 15 detik pertama setelah soal terbuka tidak dihitung pelanggaran
   const DEBOUNCE_MS = 3000;    // beberapa event dalam jeda ini dihitung 1 pelanggaran
   const FOKUS_CADANGAN = false; // true: cek fokus tiap 0,5 detik sebagai cadangan blur. Bisa memicu pelanggaran palsu di HP tertentu; aktifkan hanya setelah dites.
+
+  // ID kolom Form diambil otomatis dari PREFILL_LINK
+  const ID = { nama: '', nim: '', kelas: '' };
+  (function () {
+    try {
+      new URL(PREFILL_LINK).searchParams.forEach(function (v, k) {
+        if (k.indexOf('entry.') !== 0) return;
+        const id = k.slice(6);
+        if (v === 'AAA') ID.nama = id;
+        else if (v === 'BBB') ID.nim = id;
+        else if (v.indexOf('Kelas') === 0) ID.kelas = id;
+      });
+    } catch (e) { console.warn('PREFILL_LINK belum valid, Form tidak akan terisi otomatis.'); }
+    if (!ID.nama || !ID.nim || !ID.kelas) console.warn('ID kolom belum lengkap:', ID);
+  })();
 
   const $ = id => document.getElementById(id);
 
@@ -113,9 +127,9 @@
     const params = new URLSearchParams();
     params.set('usp', 'pp_url');
     params.set('embedded', 'true');
-    if (ENTRY_NAMA) params.set('entry.' + ENTRY_NAMA, nama);
-    if (ENTRY_NIM) params.set('entry.' + ENTRY_NIM, nim);
-    if (ENTRY_KELAS) params.set('entry.' + ENTRY_KELAS, KELAS_KE_FORM[kelas] || '');
+    if (ID.nama) params.set('entry.' + ID.nama, nama);
+    if (ID.nim) params.set('entry.' + ID.nim, nim);
+    if (ID.kelas) params.set('entry.' + ID.kelas, KELAS_KE_FORM[kelas] || '');
     return FORM_URL + '?' + params.toString();
   }
 
@@ -127,11 +141,18 @@
   }
   function sembunyikanStatus() { $('status-screen').classList.remove('show'); }
 
-  async function panggilBackend(payload) {
+  // checkStatus dicoba ulang otomatis kalau server membalas tidak lengkap
+  async function panggilBackend(payload, coba = 0) {
     try {
       const res = await fetch(BACKEND_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload) });
-      return await res.json();
+      const j = await res.json();
+      if (payload.action === 'checkStatus' && j.ok && !j.waktu) throw new Error('Respons server tidak lengkap');
+      return j;
     } catch (e) {
+      if (payload.action === 'checkStatus' && coba < 2) {
+        await new Promise(r => setTimeout(r, 800));
+        return panggilBackend(payload, coba + 1);
+      }
       return { ok: false, error: 'Gagal konek ke server: ' + e.message };
     }
   }
